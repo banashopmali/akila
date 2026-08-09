@@ -24,6 +24,7 @@ Exempté : `**/__fixtures__/**` — les fixtures existent pour être fausses.
 | `.editorconfig`                        | Fins de ligne, indentation                         | I            |
 | `.gitignore`                           | Exclusions                                         | I            |
 | `AKILA-FILE-REGISTRY.md`               | Ce fichier                                         | I            |
+| `DEMARRAGE.md`                         | Premier démarrage — lockfile et gates non exercées | I            |
 | `CLAUDE.md`                            | Contrat de collaboration — **à commiter (AKT-13)** | I            |
 | `REVIEW.md`                            | Relecture à 4 niveaux — **à commiter**             | I            |
 
