@@ -36,6 +36,16 @@ export default tseslint.config(
     },
   },
   {
+    // Les scripts CI tournent sous Node : ses globales existent réellement à l'exécution.
+    files: ['tools/ci/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+      },
+    },
+  },
+  {
     // Le domaine n'a le droit d'importer ni infrastructure ni interfaces.
     // Doublon volontaire de ARC-001/ARC-002 : l'IDE le signale avant la CI.
     files: ['apps/api/src/*/domain/**/*.ts'],
