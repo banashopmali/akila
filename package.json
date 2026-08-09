@@ -1,0 +1,31 @@
+{
+  "name": "akila",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
+    "lint": "eslint .",
+    "typecheck": "tsc -p tsconfig.base.json --noEmit",
+    "test:unit": "node --test \"tools/**/*.spec.ts\" \"apps/**/*.spec.ts\" \"packages/**/*.spec.ts\"",
+    "test:integration": "node --test \"tests/integration/**/*.spec.ts\"",
+    "test:arch": "node tools/architecture-tests/check.ts",
+    "test": "pnpm test:arch && pnpm test:unit && pnpm test:integration",
+    "scan:secrets": "node tools/ci/secret-scan.mjs",
+    "check:registry": "node tools/ci/file-registry-check.mjs",
+    "build": "tsc -p tsconfig.base.json --noEmit",
+    "verify": "pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm scan:secrets && pnpm check:registry"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "eslint": "^9.15.0",
+    "prettier": "^3.4.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.16.0"
+  }
+}

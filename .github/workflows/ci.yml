@@ -1,0 +1,168 @@
+name: CI — les 8 gates AKILA
+
+# CLAUDE.md §11 : « Le gate porte sur le merge, pas sur le démarrage.
+# Deux voies peuvent avancer en parallèle sur des branches. Rien n'atteint main sans preuve. »
+#
+# Les 8 gates sont des jobs INDÉPENDANTS et parallèles : on veut la liste complète
+# des violations en une passe, pas la première qui tombe.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22.18'
+
+jobs:
+  # ── Gate 1 ────────────────────────────────────────────────────────────────
+  format:
+    name: 1 · format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format
+
+  # ── Gate 2 ────────────────────────────────────────────────────────────────
+  lint:
+    name: 2 · lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+
+  # ── Gate 3 ────────────────────────────────────────────────────────────────
+  typecheck:
+    name: 3 · typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+
+  # ── Gate 4 ────────────────────────────────────────────────────────────────
+  tests-unit:
+    name: 4 · tests unitaires
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:unit
+
+  # ── Gate 5 ────────────────────────────────────────────────────────────────
+  tests-integration:
+    name: 5 · tests d'intégration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.TEST_PG_PASSWORD || 'postgres' }}
+          POSTGRES_DB: akila_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:integration
+        env:
+          # Décomposé volontairement : une URL avec mot de passe en clair, même de
+          # test, entraîne la mauvaise habitude — et la gate 7 la refuse.
+          PGHOST: localhost
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGPASSWORD: ${{ secrets.TEST_PG_PASSWORD || 'postgres' }}
+          PGDATABASE: akila_test
+
+  # ── Gate 6 — le cœur du dispositif ────────────────────────────────────────
+  tests-architecture:
+    name: 6 · tests d'architecture
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      # Sens 1 : le dépôt est propre. Sens 2 : les règles attrapent les violations
+      # de __fixtures__/violations. Les deux sont dans la même suite — AKT-19 §5.
+      - run: pnpm test:arch
+      - run: node --test "tools/architecture-tests/*.spec.ts"
+
+  # ── Gate 7 ────────────────────────────────────────────────────────────────
+  secrets:
+    name: 7 · scan de secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}' }
+      - run: node tools/ci/secret-scan.mjs
+
+  # ── Gate 8 ────────────────────────────────────────────────────────────────
+  build:
+    name: 8 · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm check:registry
+
+  # ── Evidence Pack — CLAUDE.md §11 ─────────────────────────────────────────
+  evidence-pack:
+    name: Evidence Pack
+    runs-on: ubuntu-latest
+    needs:
+      [format, lint, typecheck, tests-unit, tests-integration, tests-architecture, secrets, build]
+    if: always()
+    steps:
+      - name: Verdict
+        run: |
+          echo "## Evidence Pack — ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Gate | Résultat |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| 1 · format | ${{ needs.format.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2 · lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3 · typecheck | ${{ needs.typecheck.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 4 · tests unitaires | ${{ needs.tests-unit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 5 · tests d'intégration | ${{ needs.tests-integration.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 6 · tests d'architecture | ${{ needs.tests-architecture.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 7 · scan de secrets | ${{ needs.secrets.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 8 · build + registre | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ contains(needs.*.result, 'failure') }}" = "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**VERDICT BLOQUÉ** — au moins une gate a refusé." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**VERDICT MERGE** — les 8 gates sont vertes." >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"],
+    "paths": {
+      "@akila/kernel/*": ["./packages/kernel/src/*"]
+    }
+  },
+  "include": ["tools/**/*.ts", "apps/**/*.ts", "packages/**/*.ts"],
+  "exclude": ["node_modules", "dist", "build", ".next", "**/__fixtures__/**"]
+}
