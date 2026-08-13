@@ -25,8 +25,8 @@ Exempté : `**/__fixtures__/**` — les fixtures existent pour être fausses.
 | `.gitignore`                           | Exclusions                                         | I            |
 | `AKILA-FILE-REGISTRY.md`               | Ce fichier                                         | I            |
 | `DEMARRAGE.md`                         | Premier démarrage — lockfile et gates non exercées | I            |
-| `CLAUDE.md`                            | Contrat de collaboration — **à commiter (AKT-13)** | I            |
-| `REVIEW.md`                            | Relecture à 4 niveaux — **à commiter**             | I            |
+| `CLAUDE.md`                            | Contrat de collaboration — les 11 interdictions    | I            |
+| `REVIEW.md`                            | Relecture à 4 niveaux                              | I            |
 
 ## `.github/`
 
