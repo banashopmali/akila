@@ -68,11 +68,25 @@ Exempté : `**/__fixtures__/**` — les fixtures existent pour être fausses.
 | ----------------------------- | ---------------------- |
 | `apps/admin-web/package.json` | Manifeste du workspace |
 
-## `packages/kernel/` — AKT-66, propriétaire N
+## `packages/kernel/` — AKT-66, propriétaire I
 
-| Fichier                        | Rôle                   |
-| ------------------------------ | ---------------------- |
-| `packages/kernel/package.json` | Manifeste du workspace |
+| Fichier                                  | Rôle                                                       |
+| ---------------------------------------- | ---------------------------------------------------------- |
+| `packages/kernel/package.json`           | Manifeste du workspace                                     |
+| `packages/kernel/src/result.ts`          | `Result` — l'échec est une valeur, pas une exception       |
+| `packages/kernel/src/result.spec.ts`     | Tests                                                      |
+| `packages/kernel/src/errors.ts`          | Modèle d'erreurs — les 3 classes d'échec (CLAUDE.md §8)    |
+| `packages/kernel/src/errors.spec.ts`     | Tests                                                      |
+| `packages/kernel/src/ids.ts`             | Identifiants techniques marqués, validation aux frontières |
+| `packages/kernel/src/ids.spec.ts`        | Tests                                                      |
+| `packages/kernel/src/clock.ts`           | Port `Clock` — horloge système et horloge figée            |
+| `packages/kernel/src/clock.spec.ts`      | Tests                                                      |
+| `packages/kernel/src/pagination.ts`      | Contrat de pagination par curseur opaque                   |
+| `packages/kernel/src/pagination.spec.ts` | Tests                                                      |
 
-> Vide par décision. Se remplit une primitive à la fois, chacune justifiée par un
-> besoin présent. Jamais d'entité métier — règle `ARC-004`.
+> Se remplit une primitive à la fois, chacune justifiée par un besoin présent.
+> Jamais d'entité métier — règle `ARC-004`.
+>
+> **Pas encore ici, et volontairement :** l'Event Envelope (ses 10 champs ne sont
+> décidés nulle part — CLAUDE.md §7), l'Outbox et l'Inbox (qui en dépendent), la
+> configuration et le logging structuré.
