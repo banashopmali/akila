@@ -1,0 +1,156 @@
+/**
+ * AKILA — journalisation structurée.
+ * ==================================
+ *
+ * CLAUDE.md §5 : le kernel porte les primitives d'observabilité.
+ * Constitution §26 : « Les logs ne contiennent pas les secrets, clés, tokens ou
+ * OTP en clair. » Interdiction 11.
+ *
+ * Deux partis pris.
+ *
+ * 1. La sortie est **injectée**. Un logger qui écrit lui-même sur `stdout` rend
+ *    ses appelants intestables et impose un canal au déploiement. Ici, la
+ *    destination est un paramètre.
+ *
+ * 2. La rédaction des champs sensibles est **structurelle**, pas contractuelle.
+ *    Compter sur la discipline de chacun pour ne jamais journaliser un jeton
+ *    échoue le jour où quelqu'un journalise un objet entier « pour déboguer ».
+ *    Ici, le logger ne peut pas laisser fuir un champ nommé `token`.
+ */
+
+import { systemClock } from './clock.ts';
+import type { Clock } from './clock.ts';
+
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+const ORDRE: Record<LogLevel, number> = { debug: 10, info: 20, warn: 30, error: 40 };
+
+/** Champs structurés joints à une ligne. `unknown` et non `any` — interdiction 8. */
+export interface LogFields {
+  readonly [key: string]: unknown;
+}
+
+export interface Logger {
+  debug(message: string, fields?: LogFields): void;
+  info(message: string, fields?: LogFields): void;
+  warn(message: string, fields?: LogFields): void;
+  error(message: string, fields?: LogFields): void;
+  /** Dérive un logger qui portera ces champs sur chaque ligne — corrélation, tenant. */
+  child(fields: LogFields): Logger;
+}
+
+/**
+ * Noms de champs dont la valeur ne sort jamais.
+ *
+ * Comparés après normalisation : `apiKey`, `api_key`, `API-KEY` et `apikey` sont
+ * le même nom. La liste couvre les porteurs d'identité et de secret ; elle
+ * s'allonge quand un nouveau cas apparaît, jamais elle ne se raccourcit.
+ */
+const CHAMPS_INTERDITS = new Set([
+  'password',
+  'motdepasse',
+  'passphrase',
+  'token',
+  'accesstoken',
+  'refreshtoken',
+  'idtoken',
+  'secret',
+  'clientsecret',
+  'apikey',
+  'authorization',
+  'cookie',
+  'setcookie',
+  'sessionid',
+  'credential',
+  'credentials',
+  'privatekey',
+  'otp',
+  'pin',
+  'codeverification',
+]);
+
+const MASQUE = '[secret]';
+const PROFONDEUR_MAX = 6;
+
+function estInterdit(cle: string): boolean {
+  return CHAMPS_INTERDITS.has(cle.toLowerCase().replace(/[_\-\s.]/g, ''));
+}
+
+/**
+ * Recopie la valeur en masquant les champs sensibles.
+ *
+ * Traverse les objets et les tableaux : un jeton enfoui à trois niveaux fuit
+ * exactement comme un jeton en surface. `vus` coupe les cycles — une structure
+ * circulaire dans un champ de log ne doit pas faire tomber l'application ; un
+ * logger qui lève est pire qu'un logger muet.
+ */
+function redact(valeur: unknown, profondeur = 0, vus = new WeakSet<object>()): unknown {
+  if (valeur === null || typeof valeur !== 'object') return valeur;
+  if (profondeur >= PROFONDEUR_MAX) return '[trop profond]';
+  if (vus.has(valeur)) return '[cycle]';
+  vus.add(valeur);
+
+  if (valeur instanceof Date) return valeur.toISOString();
+  if (valeur instanceof Error) {
+    return { name: valeur.name, message: valeur.message };
+  }
+  if (Array.isArray(valeur)) {
+    return valeur.map((element) => redact(element, profondeur + 1, vus));
+  }
+
+  const sortie: Record<string, unknown> = {};
+  for (const [cle, v] of Object.entries(valeur)) {
+    sortie[cle] = estInterdit(cle) ? MASQUE : redact(v, profondeur + 1, vus);
+  }
+  return sortie;
+}
+
+export interface LoggerOptions {
+  /** En dessous, rien n'est écrit. Par défaut `info`. */
+  readonly minLevel?: LogLevel;
+  /** Horloge — figée dans les tests, système en production. */
+  readonly clock?: Clock;
+  /** Champs portés par chaque ligne. */
+  readonly base?: LogFields;
+}
+
+/**
+ * Logger JSON — une ligne par événement, destination injectée.
+ *
+ * Le format tient en cinq clés : `time`, `level`, `message`, plus les champs.
+ * Une ligne par événement se relit avec `grep` quand l'agrégateur est tombé, ce
+ * qui arrive précisément le jour où on en a besoin.
+ */
+export function jsonLogger(write: (ligne: string) => void, options: LoggerOptions = {}): Logger {
+  const clock = options.clock ?? systemClock;
+  const seuil = ORDRE[options.minLevel ?? 'info'];
+  const base = options.base ?? {};
+
+  function ecrire(level: LogLevel, message: string, fields?: LogFields): void {
+    if (ORDRE[level] < seuil) return;
+    const ligne = {
+      time: clock.now().toISOString(),
+      level,
+      message,
+      ...(redact({ ...base, ...fields }) as Record<string, unknown>),
+    };
+    write(JSON.stringify(ligne));
+  }
+
+  return {
+    debug: (m, f) => ecrire('debug', m, f),
+    info: (m, f) => ecrire('info', m, f),
+    warn: (m, f) => ecrire('warn', m, f),
+    error: (m, f) => ecrire('error', m, f),
+    child: (fields) => jsonLogger(write, { ...options, base: { ...base, ...fields } }),
+  };
+}
+
+/** Logger muet — pour les tests qui n'observent pas la sortie. */
+export const silentLogger: Logger = {
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+  child: () => silentLogger,
+};

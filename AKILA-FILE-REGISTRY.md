@@ -83,10 +83,16 @@ Exempté : `**/__fixtures__/**` — les fixtures existent pour être fausses.
 | `packages/kernel/src/clock.spec.ts`      | Tests                                                      |
 | `packages/kernel/src/pagination.ts`      | Contrat de pagination par curseur opaque                   |
 | `packages/kernel/src/pagination.spec.ts` | Tests                                                      |
+| `packages/kernel/src/logger.ts`          | Journalisation structurée, rédaction des champs sensibles  |
+| `packages/kernel/src/logger.spec.ts`     | Tests                                                      |
 
 > Se remplit une primitive à la fois, chacune justifiée par un besoin présent.
 > Jamais d'entité métier — règle `ARC-004`.
 >
-> **Pas encore ici, et volontairement :** l'Event Envelope (ses 10 champs ne sont
-> décidés nulle part — CLAUDE.md §7), l'Outbox et l'Inbox (qui en dépendent), la
-> configuration et le logging structuré.
+> **Pas ici, et volontairement :**
+>
+> - **Event Envelope** — ses 10 champs ne sont décidés nulle part. CLAUDE.md §7.
+> - **Outbox et Inbox** — ils portent des enveloppes ; ils attendent la précédente.
+> - **Configuration** — AKT-66 l'inscrit à son périmètre, mais CLAUDE.md §5 énumère
+>   ce que `packages/kernel` contient et la configuration n'y figure pas. Le
+>   contredire élargirait le Shared Kernel en silence. Décision à prendre.
