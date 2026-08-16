@@ -4,3 +4,4 @@ build/
 .next/
 coverage/
 pnpm-lock.yaml
+.claude/
