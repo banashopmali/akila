@@ -2,7 +2,7 @@
  * AKILA — modèle d'erreurs partagé.
  * =================================
  *
- * CLAUDE.md §8 : toute intégration classe ses erreurs en trois familles.
+ * CLAUDE.md §7 : toute intégration classe ses erreurs en trois familles.
  * Constitution §19 : « Le retry n'est jamais une stratégie de cohérence. »
  *
  * La classe d'échec n'est pas décorative : c'est elle qui décide si l'appelant a

@@ -16,7 +16,7 @@ describe('modèle d’erreurs', () => {
     assert.equal(isRetryable(permanent('auth.forbidden', 'x')), false);
 
     // Le cœur de la règle : rejouer une opération dont on ignore l’issue crée
-    // le doublon qu’on cherche à éviter. CLAUDE.md §8.
+    // le doublon qu’on cherche à éviter. CLAUDE.md §7.
     assert.equal(isRetryable(unknown('sms.unclear', 'x')), false);
   });
 

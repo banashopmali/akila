@@ -64,5 +64,6 @@ export function idFrom<TMarque extends string>(brut: string): Result<Id<TMarque>
  *
  * Une chaîne arrivant d'une frontière peut contenir un jeton mal routé ; la
  * recopier dans un log ou une réponse d'erreur la propage. La longueur suffit
- * au diagnostic. CLAUDE.md §11 · Constitution §26.
+ * au diagnostic. Constitution §26 — les logs ne contiennent ni secrets, ni clés,
+ * ni jetons en clair.
  */

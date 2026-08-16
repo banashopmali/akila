@@ -75,7 +75,7 @@ Exempté : `**/__fixtures__/**` — les fixtures existent pour être fausses.
 | `packages/kernel/package.json`           | Manifeste du workspace                                     |
 | `packages/kernel/src/result.ts`          | `Result` — l'échec est une valeur, pas une exception       |
 | `packages/kernel/src/result.spec.ts`     | Tests                                                      |
-| `packages/kernel/src/errors.ts`          | Modèle d'erreurs — les 3 classes d'échec (CLAUDE.md §8)    |
+| `packages/kernel/src/errors.ts`          | Modèle d'erreurs — les 3 classes d'échec (CLAUDE.md §7)    |
 | `packages/kernel/src/errors.spec.ts`     | Tests                                                      |
 | `packages/kernel/src/ids.ts`             | Identifiants techniques marqués, validation aux frontières |
 | `packages/kernel/src/ids.spec.ts`        | Tests                                                      |
@@ -89,10 +89,13 @@ Exempté : `**/__fixtures__/**` — les fixtures existent pour être fausses.
 > Se remplit une primitive à la fois, chacune justifiée par un besoin présent.
 > Jamais d'entité métier — règle `ARC-004`.
 >
-> **Pas ici, et volontairement :**
+> **Pas encore ici :**
 >
-> - **Event Envelope** — ses 10 champs ne sont décidés nulle part. CLAUDE.md §7.
-> - **Outbox et Inbox** — ils portent des enveloppes ; ils attendent la précédente.
-> - **Configuration** — AKT-66 l'inscrit à son périmètre, mais CLAUDE.md §5 énumère
->   ce que `packages/kernel` contient et la configuration n'y figure pas. Le
->   contredire élargirait le Shared Kernel en silence. Décision à prendre.
+> - **Event Envelope** — ses 10 champs sont fixés par CLAUDE.md §8. Rien ne la
+>   bloque plus : elle est la prochaine primitive de ce dossier.
+> - **Outbox et Inbox** — hors de la liste §5, et ils portent des enveloppes.
+>   Où ils logent reste à décider.
+> - **Configuration** — AKT-66 l'inscrit à son périmètre, mais §5 énumère ce que
+>   `packages/` contient et la configuration n'y figure pas. Reportée le 16 août.
+>
+> Les trois sont consignés dans `DECISIONS.md`.
