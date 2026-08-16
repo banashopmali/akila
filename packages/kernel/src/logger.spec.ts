@@ -69,6 +69,44 @@ describe('journalisation structurée', () => {
     assert.equal(ligne.utilisateur, 'admin@ecole.ml');
   });
 
+  test('un nom COMPOSÉ est masqué comme le nom nu', () => {
+    // Le cas réel : personne n'écrit « password », on écrit « userPassword ».
+    // Une comparaison par égalité exacte laisserait tout ceci en clair.
+    const { logger, lignes, json } = capture();
+    logger.info('connexion', {
+      userPassword: 'A',
+      apiKeyV2: 'B',
+      refreshTokenExpiry: 'C',
+      adminOtpCode: 'D',
+      xAuthorizationHeader: 'E',
+    });
+
+    const ligne = json()[0];
+    for (const champ of [
+      'userPassword',
+      'apiKeyV2',
+      'refreshTokenExpiry',
+      'adminOtpCode',
+      'xAuthorizationHeader',
+    ]) {
+      assert.equal(ligne[champ], '[secret]', `${champ} doit être masqué`);
+    }
+    for (const valeur of ['"A"', '"B"', '"C"', '"D"', '"E"']) {
+      assert.equal(lignes[0]?.includes(valeur), false);
+    }
+  });
+
+  test('un mot anodin contenant un terme court n’est pas masqué', () => {
+    // « pin » est contenu dans mapping et shipping. Sur-masquer cacherait du
+    // diagnostic utile sans rien protéger : égalité stricte pour ces termes-là.
+    const { logger, json } = capture();
+    logger.info('trajet', { mapping: 'ok', shipping: 'ok', pin: '1234' });
+
+    assert.equal(json()[0].mapping, 'ok');
+    assert.equal(json()[0].shipping, 'ok');
+    assert.equal(json()[0].pin, '[secret]');
+  });
+
   test('un secret enfoui est masqué comme un secret en surface', () => {
     const { logger, lignes, json } = capture();
     logger.info('appel fournisseur', {

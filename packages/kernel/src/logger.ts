@@ -40,40 +40,49 @@ export interface Logger {
 }
 
 /**
- * Noms de champs dont la valeur ne sort jamais.
+ * Termes dont la présence dans un nom de champ suffit à masquer la valeur.
+ *
+ * Recherche par **inclusion**, pas par égalité. Un nom composé — `userPassword`,
+ * `apiKeyV2`, `refreshTokenExpiry` — porte exactement le même secret que le nom
+ * nu, et c'est sous cette forme qu'il apparaît en pratique. Une liste d'égalité
+ * exacte donne l'illusion de la protection tout en laissant passer le cas courant.
  *
  * Comparés après normalisation : `apiKey`, `api_key`, `API-KEY` et `apikey` sont
- * le même nom. La liste couvre les porteurs d'identité et de secret ; elle
- * s'allonge quand un nouveau cas apparaît, jamais elle ne se raccourcit.
+ * le même nom.
+ *
+ * La liste s'allonge quand un nouveau cas apparaît ; elle ne se raccourcit jamais.
  */
-const CHAMPS_INTERDITS = new Set([
+const TERMES_INTERDITS = [
   'password',
   'motdepasse',
   'passphrase',
   'token',
-  'accesstoken',
-  'refreshtoken',
-  'idtoken',
   'secret',
-  'clientsecret',
   'apikey',
   'authorization',
+  'bearer',
   'cookie',
-  'setcookie',
   'sessionid',
   'credential',
-  'credentials',
   'privatekey',
   'otp',
-  'pin',
-  'codeverification',
-]);
+];
+
+/**
+ * Termes trop courts pour l'inclusion : ils apparaissent dans des mots anodins.
+ * `pin` est contenu dans `mapping` et `shipping` — masquer ces champs cacherait
+ * du diagnostic utile sans rien protéger. Égalité stricte pour ceux-là.
+ */
+const TERMES_EXACTS = new Set(['pin', 'cvv', 'iban']);
 
 const MASQUE = '[secret]';
 const PROFONDEUR_MAX = 6;
 
 function estInterdit(cle: string): boolean {
-  return CHAMPS_INTERDITS.has(cle.toLowerCase().replace(/[_\-\s.]/g, ''));
+  const normalise = cle.toLowerCase().replace(/[_\-\s.]/g, '');
+  return (
+    TERMES_EXACTS.has(normalise) || TERMES_INTERDITS.some((terme) => normalise.includes(terme))
+  );
 }
 
 /**
