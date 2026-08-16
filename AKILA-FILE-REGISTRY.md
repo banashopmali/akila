@@ -27,6 +27,7 @@ Exempté : `**/__fixtures__/**` — les fixtures existent pour être fausses.
 | `DEMARRAGE.md`                         | Premier démarrage — lockfile et gates non exercées | I            |
 | `CLAUDE.md`                            | Contrat de collaboration — les 11 interdictions    | I            |
 | `REVIEW.md`                            | Relecture à 4 niveaux                              | I            |
+| `DECISIONS.md`                         | Journal des décisions — provisoire jusqu'à AKT-4   | I            |
 
 ## `.github/`
 

@@ -1,157 +1,199 @@
-# CLAUDE.md — contrat de collaboration AKILA
+# CLAUDE.md — AKILA School OS
 
-> **v1.0 — à valider par le Delivery Owner avant de faire autorité.**
-> Deux points sont marqués `À VALIDER` : ils n'ont pas de source normative dans le
-> corpus. Constitution §28 : quand une décision manque, on s'arrête et on signale.
-
-Ce fichier suffit pour coder. Si vous devez ouvrir un autre document avant d'écrire
-une ligne, c'est que ce fichier a échoué — signalez-le.
-
-Autorité : ce document applique **AKILA-ACRB-001** (Constitution). En cas de
-contradiction, la Constitution gagne et l'implémentation s'arrête.
+> **Source unique des invariants.** Ce fichier remplace la lecture des 45 documents
+> avant chaque modification. En cas de contradiction avec un autre document,
+> **ce fichier fait foi** — et l'écart se corrige par un ADR, pas par une exception.
+>
+> Version 1.0 — 3 août 2026. Toute modification exige un ADR accepté.
 
 ---
 
-## §1 — Avant toute modification
+## 1. Ce qu'est AKILA
 
-Identifier : la tâche (AKT-n), le domaine, les fichiers autorisés, les contrats
-touchés, les tests attendus. Puis lire le README du domaine cible.
+Un School Operating System pour les écoles africaines. Modular Monolith orienté domaines,
+multi-tenant, offline-first. Le premier parcours de valeur :
 
-**S'il manque une décision normative, s'arrêter et signaler le manque.** Ne jamais
-l'inventer. Claude Code est un contributeur gouverné, pas une autorité d'architecture.
+`arrivée de l'élève → décision de présence → SMS au parent → journal d'audit`
 
-## §2 — Le cycle
-
-Planifier → **un seul fichier de production à la fois** → formater → linter →
-typer → tester → documenter → mettre à jour le registre → s'arrêter au périmètre demandé.
-
-Dépasser le périmètre demandé est une violation, même quand le code produit est bon.
-
-## §3 — Direction des dépendances
-
-À l'intérieur d'un domaine (`apps/api/src/<domaine>/`) :
-
-```
-interfaces → application → domain ← infrastructure
-```
-
-Le sens ne s'inverse **jamais**. Le `domain` déclare un Port ; `infrastructure`
-l'implémente. Le `domain` ne dépend que de TypeScript et de `@akila/kernel`.
-
-**Entre domaines, jamais en direct.** Contrat public ou événement, consommé par la
-couche `application`. Jamais le repository, jamais les tables, jamais l'entité de l'autre.
-
-## §4 — Les 11 interdictions
-
-| #   | Interdiction                                                                              | Gate              |
-| --- | ----------------------------------------------------------------------------------------- | ----------------- |
-| 1   | Le Domain ne connaît pas l'UI                                                             | ARC-002           |
-| 2   | Le Domain ne connaît ni Controller ni DTO HTTP                                            | ARC-002           |
-| 3   | Le Domain ne connaît pas l'Infrastructure concrète                                        | ARC-001           |
-| 4   | Un domaine ne lit jamais les tables ni les repositories d'un autre                        | à écrire          |
-| 5   | La logique métier centrale ne vit ni dans un controller ni dans un widget · **À VALIDER** | relecture         |
-| 6   | L'UI ne touche jamais la base ni le code serveur — elle passe par l'API HTTP              | ARC-003           |
-| 7   | Aucune erreur avalée : pas de `catch` vide                                                | lint `no-empty`   |
-| 8   | Aucun `any` silencieux                                                                    | lint + typecheck  |
-| 9   | Aucun contournement du tenant, de l'autorisation ou de l'audit · **À VALIDER**            | tests d'isolation |
-| 10  | Un SDK ou un nom de fournisseur ne vit que dans un adaptateur d'infrastructure            | ARC-005 · ARC-006 |
-| 11  | Aucun secret dans le dépôt — ni code, ni fixture, ni historique                           | scan de secrets   |
-
-Les interdictions 5 et 9 sont dérivées de la Constitution §8 mais leur **numérotation**
-n'est pas sourcée : le brouillon du 3 août qui la fixait est perdu. Le Delivery Owner
-tranche. Tout le reste est cité tel quel par `tools/architecture-tests/rules.ts`.
-
-## §5 — `packages/` — politique du Shared Kernel
-
-`packages/kernel` contient **uniquement** : identifiants techniques, `Result`/`Error`,
-abstractions de temps, enveloppe d'événement, contrat de pagination, primitives
-d'observabilité.
-
-N'y entrent **jamais** : `Student` · `School` · `Guardian` · `Attendance` · `Grade` ·
-`Payment` · `Trip`. Pas « pas encore » : jamais. Une entité métier partagée est le
-point de départ du couplage que l'architecture refuse par construction.
-
-`ARC-004` échoue sur la simple présence de ces identifiants, dérivés compris
-(`StudentId`, `AttendanceRepository`).
-
-## §6 — Multi-tenant
-
-L'isolation tenant est un invariant. **Une fonctionnalité qui permet une fuite
-cross-tenant n'est pas livrable** — ce n'est pas un bug à corriger plus tard.
-
-Le tenant est dérivé et vérifié **côté backend**, propagé dans les contrats, appliqué
-aux données, aux caches, aux exports et aux médias, testé et audité.
-
-Un `tenantId` fourni par le client n'est jamais une preuve d'autorisation.
-
-## §7 — Event Envelope — 10 champs
-
-Tout événement public porte l'enveloppe commune. Elle appartient au Lot 1 (AKT-66).
-
-**À VALIDER — les 10 champs ne sont fixés nulle part.** La Constitution §16 n'en donne
-que le socle : identité d'événement, type, version, timestamp du fait, corrélation,
-contexte tenant. Les quatre champs restants doivent être décidés avec AKT-66, avant
-le premier événement publié. Ne pas en inventer la liste ici.
-
-Règle qui tient déjà : **l'event bus n'est jamais un RPC déguisé.** Le producteur
-possède la sémantique de ce qu'il publie ; le consommateur possède sa projection,
-jamais la vérité.
-
-## §8 — Les 3 classes d'échec
-
-Toute intégration classe ses erreurs :
-
-1. **transitoire / rejouable** — retry borné, avec backoff.
-2. **permanente / non rejouable** — échec explicite, pas de retry.
-3. **inconnue / à réconcilier** — n'invente pas d'issue, ouvre un cas.
-
-**Le retry n'est jamais une stratégie de cohérence.** Toute opération rejouable est
-idempotente. Le dernier écrivain silencieux (`last-write-wins`) est interdit sur les
-agrégats critiques.
-
-## §9 — Ownerships OUVERTS
-
-Deux propriétés ne sont **pas** décidées :
-
-- **Timetable / Course Schedule**
-- **StaffProfile / Staff Management**
-
-Aucun agrégat autoritatif correspondant ne peut être créé tant que la décision n'est
-pas prise. Si votre tâche en a besoin : arrêt, signalement, décision — pas de contournement.
-
-## §10 — File Registry
-
-**Ne créez pas un fichier absent de `AKILA-FILE-REGISTRY.md`.** Inscrivez-le d'abord,
-dans le même commit.
-
-Un fichier hors registre est une violation d'architecture, pas un oubli administratif :
-l'arborescence qui dérive en silence est le premier mode d'échec du code généré.
-
-## §11 — Definition of Done
-
-Chemin conforme · responsabilité unique · dépendances autorisées · format, lint et
-types verts · tests pertinents verts · tests d'architecture verts · registre à jour ·
-multi-tenancy respectée · audit appliqué où il le faut · aucun secret exposé.
-
-**Le gate porte sur le merge, pas sur le démarrage.** Deux voies avancent en parallèle
-sur des branches ; rien n'atteint `main` sans preuve.
-
-Ne jamais déclarer verte une vérification qui n'a pas été exécutée. Citez les commandes
-que vous avez réellement lancées.
-
-## §12 — Sévérités
-
-| Niveau | Effet                                                                       |
-| ------ | --------------------------------------------------------------------------- |
-| **P0** | Bloque le merge.                                                            |
-| **P1** | Bloque la release — durci en P0 tant qu'il n'y a pas de release à protéger. |
-| **P2** | Avertit.                                                                    |
+Stack : **TypeScript, NestJS, PostgreSQL, Redis** (backend) · **Next.js** (admin web) ·
+**Flutter / Android** (capture tablette).
 
 ---
 
-## La ligne à ne pas franchir
+## 2. Périmètre actif — MVP-P (pilote du 1er octobre 2026)
 
-**Si une gate est rouge, on corrige le code. On ne désactive pas la gate.**
+**DANS :** 1 établissement · 1 année scolaire · 2 à 6 classes · import élèves/responsables par CSV ·
+auth admin + enseignant · isolation `tenant_id` implémentée et testée · capture QR + saisie manuelle ·
+règles présent/retard/absent avec seuil configurable · file offline durable + sync idempotente ·
+SMS **sur exception uniquement** (retard, absence, sortie inhabituelle) avec statut de livraison ·
+dashboard présence du jour + export CSV · journal d'audit immuable.
 
-Un test d'architecture affaibli pour verdir un pipeline ne protège plus rien, et
-personne ne se souvient six mois plus tard qu'il a été affaibli.
+**HORS — prévu architecturalement, non implémenté :** biométrie · RFID/NFC · app Parent ·
+app Enseignant · notifications push · Academic · Billing · Transport · Reporting · Inspector · AI ·
+multi-pays · terminal sur mesure · Notification Platform multi-canal.
+
+> **Règle dure :** n'ouvre aucun lot hors MVP-P avant le 31 octobre 2026.
+> Une demande hors périmètre va au Backlog futur, sans discussion.
+
+---
+
+## 3. Direction des dépendances
+
+```
+UI / Clients → API (Interface Boundary) → Application → Domain → Ports → Infrastructure Adapters
+```
+
+Entre domaines, **jamais en direct** :
+
+```
+Domaine producteur → Contrat public ou Événement → Couche Application du consommateur
+```
+
+---
+
+## 4. Les 11 interdictions universelles
+
+Aucune exception, aucune dérogation temporaire.
+
+1. `Domain` → UI
+2. `Domain` → Controller / API
+3. `Domain` → Infrastructure concrète
+4. Domaine A → repository interne du domaine B
+5. Domaine A → tables privées du domaine B
+6. UI → base de données
+7. Reporting → mutation des sources
+8. Inspector → base de données d'une école
+9. AI → bases opérationnelles, ou toute écriture directe
+10. SDK fournisseur → `Domain`
+11. Frontend → secrets
+
+---
+
+## 5. Politique `packages/`
+
+`packages/` ne contient **que** : identifiants techniques, `Result`/`Error`, abstractions de temps,
+enveloppe d'événement, contrat de pagination, primitives d'observabilité.
+
+> `Student`, `School`, `Guardian`, `Attendance`, `Grade`, `Payment`, `Trip`
+> **ne deviennent jamais des modèles partagés.** Jamais.
+
+---
+
+## 6. Multi-tenant
+
+- Toute requête, toute écriture, tout événement porte un `tenantId`.
+- Aucune requête ne franchit une frontière de tenant. C'est une violation **P0**.
+- Une fonctionnalité correcte mais qui casse l'isolation multi-tenant **n'est pas livrable**.
+- Tout nouveau domaine ajoute son test d'isolation. Pas de test, pas de merge.
+
+---
+
+## 7. Fiabilité — non négociable
+
+**Outbox / Inbox.** Une mutation locale confirmée qui doit émettre un événement critique passe par
+un Transactional Outbox. Tout consommateur critique déduplique via un Inbox.
+
+**Idempotence.** Clé = `tenant + opération + idempotencyKey`.
+
+- Même clé + même payload sémantique → **même résultat logique, aucun nouvel effet de bord**
+- Même clé + payload différent → **conflit**, jamais de ré-exécution silencieuse
+- Résultat externe inconnu → état `pending reconciliation`, jamais `success`
+
+**Classes d'échec — toujours l'une des trois :**
+`TRANSIENT` (rejouable) · `PERMANENT` (non rejouable, état terminal) · `UNKNOWN` (réconciliation requise)
+
+**Concurrence.** Le silent last-write-wins est **interdit** sur les agrégats critiques.
+
+**Offline ≠ Authority.** La tablette produit des observations. Le serveur décide. Toujours.
+
+---
+
+## 8. Event Envelope — exactement 10 champs
+
+```ts
+{
+  (eventId,
+    eventType,
+    schemaVersion,
+    tenantId,
+    aggregateId,
+    occurredAt,
+    correlationId,
+    causationId,
+    producer,
+    payload);
+}
+```
+
+Trois horloges distinctes, jamais confondues : `occurredAt` · `receivedAt` · `persistedAt`.
+
+---
+
+## 9. Règles de responsabilité
+
+- **Configuration** fournit des valeurs ; les **domaines** décident de leur signification métier.
+- **Parent Communication** décide qui, pourquoi et quand ; **Notification Platform** décide comment transporter.
+- **Reporting** dérive ; il ne possède jamais la vérité opérationnelle.
+- Un **cache** n'est jamais source de vérité.
+
+---
+
+## 10. Comment travailler
+
+**Une tranche verticale à la fois** — contrat + cas d'usage + adaptateur + test, livrés ensemble.
+Pas un fichier isolé : un fichier isolé n'est pas prouvable.
+
+Cycle : `planifier → implémenter la tranche → formater → linter → tester → documenter → s'arrêter au périmètre`
+
+**Interdits d'exécution :**
+
+- Ne pas inventer de dossier, d'abstraction ou de dépendance non approuvés
+- Ne jamais affaiblir ni supprimer un test pour verdir un pipeline
+- Ne jamais continuer sur un pipeline rouge
+- Ne pas créer de fichier absent du File Registry
+- Ne pas produire de document normatif sans tâche associée
+- **Si une information manque dans les sources normatives : s'arrêter et signaler le gap. Ne pas inventer.**
+
+**Ownerships encore OUVERTS — interdiction de créer les fichiers autoritatifs :**
+`Timetable / Course Schedule` (A-002) · `StaffProfile / Staff Management` (A-006)
+
+---
+
+## 11. Definition of Done
+
+- [ ] Format, lint, typecheck verts
+- [ ] Tests unitaires et d'intégration verts
+- [ ] Tests d'architecture verts
+- [ ] Isolation multi-tenant validée si le domaine touche des données d'école
+- [ ] File Registry à jour
+- [ ] Contrats publics versionnés
+- [ ] PR ouverte avec Evidence Pack généré par la CI
+
+**Le gate porte sur le merge, pas sur le démarrage.** Deux voies peuvent avancer en parallèle
+sur des branches, contre des contrats figés. Rien n'atteint `main` sans preuve.
+
+**Revue humaine croisée obligatoire uniquement pour :** contrat public · ownership de domaine ·
+règle de dépendance · baseline sécurité · standard de fiabilité.
+Partout ailleurs : **CI verte = merge.**
+
+---
+
+## 12. Sévérité des violations
+
+| Niveau | Exemples                                                                                                                          | Conséquence           |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| **P0** | Franchissement cross-tenant · `Domain`→Infrastructure · UI→DB · Inspector→DB école · écriture directe AI · dépendance à un secret | **Bloque le merge**   |
+| **P1** | Repository cross-domaine direct · cycle de dépendances · SDK fournisseur dans le cœur · contrat public non versionné              | **Bloque la release** |
+| **P2** | Import feature-to-feature non approuvé · fuite de DTO · query boundary mal placée                                                 | **Avertit**           |
+
+---
+
+## 13. Quand s'arrêter et demander
+
+- La source normative ne tranche pas
+- La tâche touche un ownership `OPEN`
+- La tâche exige de créer un fichier hors structure approuvée
+- La tâche demande d'ouvrir un lot hors MVP-P
+- Respecter le périmètre demandé obligerait à violer une règle de ce fichier
+
+**Dans tous ces cas : s'arrêter, signaler, ne pas inventer.**
