@@ -2,7 +2,31 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { newId, idFrom } from './ids.ts';
+import type { Id } from './ids.ts';
 import { isOk, isErr } from './result.ts';
+
+/*
+ * Preuve à la COMPILATION du marquage.
+ *
+ * Tout l'intérêt de `Id<T>` est de ne pas exister à l'exécution : aucun test
+ * runtime ne peut donc l'observer. Sans ce bloc, remplacer `Id<T>` par un simple
+ * `string` laisserait tous les tests au vert — le cas exact que REVIEW.md
+ * appelle un test tautologique.
+ *
+ * `@ts-expect-error` échoue le typecheck quand l'erreur attendue N'A PAS lieu.
+ * La gate 3 devient donc la preuve dans les deux sens : elle casse si le
+ * marquage disparaît, et elle casse aussi s'il devient trop strict.
+ */
+function accepteUnDevice(_id: Id<'device'>): void {}
+
+// @ts-expect-error — un identifiant de tenant n'est pas un identifiant de terminal
+accepteUnDevice(newId<'tenant'>());
+
+// @ts-expect-error — une chaîne nue n'est pas un identifiant marqué
+accepteUnDevice('9f8e7d6c-5b4a-4321-8fed-cba987654321');
+
+// Le cas légitime doit compiler, lui.
+accepteUnDevice(newId<'device'>());
 
 describe('identifiants techniques', () => {
   test('newId produit un UUID v4 valide et unique', () => {

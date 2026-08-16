@@ -65,7 +65,14 @@ export function pageRequest(
   return ok({ limit, ...(cursor === undefined ? {} : { cursor }) });
 }
 
-/** Page terminale — aucun `nextCursor`, donc plus rien à demander. */
-export function lastPage<T>(items: readonly T[]): Page<T> {
-  return { items };
-}
+/*
+ * Pas de fabrique de `Page` ici.
+ *
+ * `Page<T>` est un contrat de sortie : chaque adaptateur le construit avec ses
+ * propres items et son propre curseur. Une fabrique n'aurait aujourd'hui aucun
+ * appelant — même règle que pour `map`/`flatMap` dans result.ts.
+ *
+ * L'absence de `nextCursor` est le seul signal de fin. Un adaptateur qui rend
+ * un curseur sur sa dernière page condamne l'appelant à une requête de plus,
+ * qui reviendra vide.
+ */

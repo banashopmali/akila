@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { pageRequest, lastPage, LIMITE_PAR_DEFAUT, LIMITE_MAX } from './pagination.ts';
+import { pageRequest, LIMITE_PAR_DEFAUT, LIMITE_MAX } from './pagination.ts';
 import { isOk, isErr } from './result.ts';
 
 describe('pagination', () => {
@@ -51,15 +51,5 @@ describe('pagination', () => {
       assert.equal(r.error.failureClass, 'permanent');
       assert.deepEqual(r.error.details, { recu: LIMITE_MAX + 1, max: LIMITE_MAX });
     }
-  });
-
-  test('lastPage ne porte pas de nextCursor — c’est le signal de fin', () => {
-    const page = lastPage([1, 2, 3]);
-    assert.deepEqual(page.items, [1, 2, 3]);
-    assert.equal('nextCursor' in page, false);
-  });
-
-  test('une page vide reste une page terminale valide', () => {
-    assert.deepEqual(lastPage([]).items, []);
   });
 });

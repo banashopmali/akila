@@ -99,6 +99,36 @@ describe('journalisation structurée', () => {
     assert.equal(lignes[0]?.includes('[cycle]'), true);
   });
 
+  test('un objet référencé deux fois n’est pas un cycle', () => {
+    // Le piège : mémoriser tout ce qui a été vu plutôt que la branche en cours.
+    // { a: partagé, b: partagé } n'a aucun cycle — les deux doivent sortir entiers.
+    const { logger, json } = capture();
+    const partage = { classe: '6e A' };
+    logger.info('deux références', { a: partage, b: partage });
+
+    assert.deepEqual(json()[0].a, { classe: '6e A' });
+    assert.deepEqual(json()[0].b, { classe: '6e A' });
+  });
+
+  test('un cycle imbriqué est coupé sans effacer ses voisins', () => {
+    const { logger, json } = capture();
+    const boucle: Record<string, unknown> = { nom: 'a' };
+    boucle.soi = boucle;
+    logger.info('mixte', { boucle, sain: { ok: true } });
+
+    assert.deepEqual(json()[0].sain, { ok: true });
+    assert.equal((json()[0].boucle as Record<string, unknown>).soi, '[cycle]');
+  });
+
+  test('un BigInt ne fait pas lever la sérialisation', () => {
+    // JSON.stringify lève sur un BigInt. Sans traitement, la ligne casse au
+    // moment de l'écriture — hors de portée de tout try de l'appelant.
+    const { logger, lignes, json } = capture();
+    assert.doesNotThrow(() => logger.info('grand nombre', { compteur: 9007199254740993n }));
+    assert.equal(lignes.length, 1);
+    assert.equal(json()[0].compteur, '9007199254740993n');
+  });
+
   test('une Error devient lisible sans sa pile', () => {
     const { logger, json } = capture();
     logger.error('échec', { cause: new TypeError('mauvais type') });

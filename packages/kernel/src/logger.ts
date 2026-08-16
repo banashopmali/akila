@@ -80,28 +80,39 @@ function estInterdit(cle: string): boolean {
  * Recopie la valeur en masquant les champs sensibles.
  *
  * Traverse les objets et les tableaux : un jeton enfoui à trois niveaux fuit
- * exactement comme un jeton en surface. `vus` coupe les cycles — une structure
- * circulaire dans un champ de log ne doit pas faire tomber l'application ; un
- * logger qui lève est pire qu'un logger muet.
+ * exactement comme un jeton en surface.
+ *
+ * `chemin` contient les objets de la branche **en cours**, pas tous ceux déjà
+ * vus : un même objet référencé deux fois côte à côte n'est pas un cycle, et le
+ * signaler comme tel effacerait une donnée parfaitement lisible. On l'ajoute en
+ * descendant, on le retire en remontant.
+ *
+ * La fonction est totale — elle ne lève jamais. Un logger qui lève casse
+ * l'appelant au moment précis où celui-ci signalait un problème.
  */
-function redact(valeur: unknown, profondeur = 0, vus = new WeakSet<object>()): unknown {
+function redact(valeur: unknown, profondeur = 0, chemin = new Set<object>()): unknown {
+  // BigInt n'est pas sérialisable par JSON.stringify : il lèverait au moment
+  // d'écrire la ligne, donc hors de portée de tout try local de l'appelant.
+  if (typeof valeur === 'bigint') return `${valeur}n`;
   if (valeur === null || typeof valeur !== 'object') return valeur;
   if (profondeur >= PROFONDEUR_MAX) return '[trop profond]';
-  if (vus.has(valeur)) return '[cycle]';
-  vus.add(valeur);
+  if (chemin.has(valeur)) return '[cycle]';
 
   if (valeur instanceof Date) return valeur.toISOString();
   if (valeur instanceof Error) {
     return { name: valeur.name, message: valeur.message };
   }
-  if (Array.isArray(valeur)) {
-    return valeur.map((element) => redact(element, profondeur + 1, vus));
-  }
 
-  const sortie: Record<string, unknown> = {};
-  for (const [cle, v] of Object.entries(valeur)) {
-    sortie[cle] = estInterdit(cle) ? MASQUE : redact(v, profondeur + 1, vus);
-  }
+  chemin.add(valeur);
+  const sortie = Array.isArray(valeur)
+    ? valeur.map((element) => redact(element, profondeur + 1, chemin))
+    : Object.fromEntries(
+        Object.entries(valeur).map(([cle, v]) => [
+          cle,
+          estInterdit(cle) ? MASQUE : redact(v, profondeur + 1, chemin),
+        ]),
+      );
+  chemin.delete(valeur);
   return sortie;
 }
 
