@@ -26,10 +26,13 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     rules: {
-      // Interdiction 8 : pas de « any » silencieux.
+      // Qualité — pas de « any » silencieux. TypeScript strict est la première
+      // ligne ; celle-ci attrape le « any » écrit à la main.
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      // Interdiction 7 : une erreur avalée est une erreur qui reviendra en production.
+      // CLAUDE.md §7 — une erreur doit être classée TRANSIENT, PERMANENT ou
+      // UNKNOWN. Un catch vide n'en classe aucune : l'erreur reviendra ailleurs,
+      // sans son contexte. REVIEW.md, contrôle qualité 11.
       'no-empty': ['error', { allowEmptyCatch: false }],
       eqeqeq: ['error', 'always'],
       'no-console': 'off',

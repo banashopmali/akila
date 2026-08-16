@@ -12,7 +12,7 @@ Un seul fichier bouge : **`rules.ts`**. Ni `scanner.ts`, ni `architecture.spec.t
   id: 'ARC-007',
   kind: 'dependency',
   severity: 'P0',
-  because: "Interdiction 4 — un domaine ne lit jamais les tables d'un autre.",
+  because: "Interdictions 4 et 5 — ni le repository ni les tables d'un autre domaine.",
   from: 'apps/api/src/facturation/**',
   cannotImport: ['apps/api/src/scolarite/**'],
 }
