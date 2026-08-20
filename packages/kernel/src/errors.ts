@@ -24,8 +24,20 @@
 export type FailureClass = 'transient' | 'permanent' | 'unknown';
 
 /**
- * Forme d'une erreur AKILA. Données pures, sans méthode : une erreur doit pouvoir
- * traverser un log structuré, une file ou une frontière HTTP sans rien perdre.
+ * Forme d'une erreur AKILA. Données pures, sans méthode.
+ *
+ * **Portée de la garantie.** `code`, `message`, `failureClass` et `details`
+ * traversent un log, une file ou une frontière HTTP sans rien perdre. `cause` en
+ * est exclue **volontairement** : elle accepte n'importe quoi, et `JSON.stringify`
+ * réduit un `Error` à `{}` — message et pile disparaissent en silence.
+ *
+ * Ce n'est pas un oubli. `cause` existe pour le traitement local, où l'objet
+ * d'origine a encore de la valeur : `instanceof`, code d'erreur d'un pilote,
+ * réponse d'un fournisseur. C'est le logger qui sait l'aplatir au moment d'écrire
+ * — il normalise un `Error` en `{ name, message }`.
+ *
+ * Qui sérialise une erreur autrement que par le logger doit traiter `cause`
+ * lui-même, ou l'omettre.
  */
 export interface AkilaError {
   /** Identifiant stable, propriété du domaine émetteur. Ex. : `attendance.already_checked_in`. */

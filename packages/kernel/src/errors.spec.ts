@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 
 import { transient, permanent, unknown, isRetryable } from './errors.ts';
 import type { FailureClass } from './errors.ts';
+import { jsonLogger } from './logger.ts';
+import { fixedClock } from './clock.ts';
 
 describe('modèle d’erreurs', () => {
   test('chaque fabrique pose sa classe d’échec', () => {
@@ -45,6 +47,35 @@ describe('modèle d’erreurs', () => {
       failureClass: 'permanent',
       details: { champ: 'limite' },
     });
+  });
+
+  test('cause ne survit PAS à JSON — la garantie s’arrête aux 4 autres champs', () => {
+    // Verrouille la limite documentée plutôt que de la laisser se découvrir en
+    // production : JSON.stringify réduit un Error à {}. Si un jour cause devient
+    // normalisée à la construction, ce test tombe et force à relire le contrat.
+    const e = transient('net.reset', 'coupure', { cause: new Error('socket fermée') });
+    const relu = JSON.parse(JSON.stringify(e));
+
+    assert.deepEqual(relu.cause, {});
+    assert.equal(JSON.stringify(e).includes('socket fermée'), false);
+
+    // Ce qui est garanti l'est vraiment.
+    assert.equal(relu.code, 'net.reset');
+    assert.equal(relu.message, 'coupure');
+    assert.equal(relu.failureClass, 'transient');
+  });
+
+  test('le logger, lui, sait aplatir une cause Error', () => {
+    // C'est là que la responsabilité est posée : le contrat n'aplatit pas, le
+    // logger si. Ce test relie les deux primitives au lieu de les supposer.
+    const lignes: string[] = [];
+    const log = jsonLogger((l) => lignes.push(l), { clock: fixedClock(new Date(0)) });
+    // Une interface nommée n'a pas d'index signature : on l'étale pour la passer
+    // en champs. C'est le seul point de friction entre les deux primitives.
+    log.error('échec', { ...permanent('x', 'y', { cause: new TypeError('mauvais type') }) });
+
+    const cause = JSON.parse(lignes[0] ?? '{}').cause as { name: string; message: string };
+    assert.deepEqual(cause, { name: 'TypeError', message: 'mauvais type' });
   });
 
   test('les trois classes sont exhaustives — le compilateur le vérifie', () => {

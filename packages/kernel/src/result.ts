@@ -5,9 +5,15 @@
  * CLAUDE.md §5 : `packages/kernel` ne contient que des primitives techniques.
  *
  * Pourquoi ce type existe : une exception traverse silencieusement les couches et
- * finit par être avalée quelque part (interdiction 7). Un `Result` rendu par une
- * signature oblige l'appelant à décider quoi faire de l'échec — le compilateur ne
- * le laisse pas l'ignorer.
+ * finit par être avalée quelque part. Un `Result` rend l'échec visible dans la
+ * signature, et le compilateur refuse de lire `value` avant d'avoir écarté le cas
+ * d'erreur.
+ *
+ * **Ce qu'il ne fait pas.** TypeScript n'impose pas de consommer une valeur de
+ * retour : `operation();` compile. Le type garantit qu'on ne peut pas lire un
+ * résultat *sans traiter* l'échec — il ne garantit pas qu'on le lise. Interdire
+ * les `Result` ignorés demanderait une règle de lint dédiée ; elle n'existe pas
+ * encore, et son absence relève de la relecture.
  *
  * Les exceptions restent légitimes pour ce qui n'est pas un cas métier : bug de
  * programmation, invariant interne rompu, panne d'infrastructure non modélisée.
@@ -19,7 +25,13 @@ export interface Ok<T> {
   readonly value: T;
 }
 
-/** Échec. `error` porte la raison, jamais `null`. */
+/**
+ * Échec. `error` porte la raison.
+ *
+ * `err()` refuse `null` et `undefined` : un échec sans raison exploitable oblige
+ * l'appelant à deviner, et un appelant qui devine choisit mal. La contrainte vit
+ * sur la fabrique, seule voie de construction.
+ */
 export interface Err<E> {
   readonly ok: false;
   readonly error: E;
@@ -35,7 +47,7 @@ export function ok<T>(value: T): Ok<T> {
   return { ok: true, value };
 }
 
-export function err<E>(error: E): Err<E> {
+export function err<E extends NonNullable<unknown>>(error: E): Err<E> {
   return { ok: false, error };
 }
 

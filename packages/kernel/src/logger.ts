@@ -30,6 +30,25 @@ export interface LogFields {
   readonly [key: string]: unknown;
 }
 
+/**
+ * **`message` n'est PAS rédigé — et ne peut pas l'être.**
+ *
+ * La rédaction s'appuie sur le nom des champs. Du texte libre n'a pas de nom :
+ * `logger.error(\`échec du jeton ${jeton}\`)` sort en clair. Chercher des secrets
+ * dans une chaîne demanderait une heuristique, qui laisserait toujours passer un
+ * format inattendu tout en donnant l'illusion de protéger.
+ *
+ * La frontière est donc posée ailleurs : **le message est une constante, les
+ * données variables vont dans les champs.** Pas parce que c'est plus joli — parce
+ * que c'est la seule moitié que la machine sait protéger.
+ *
+ *     ✗ logger.info(`élève ${id} arrivé à ${heure}`)
+ *     ✓ logger.info('élève arrivé', { eleveId: id, heure })
+ *
+ * Une règle de lint refuse les gabarits en première position. Elle ne couvre pas
+ * la concaténation ni une variable passée telle quelle : ce qui reste tient à la
+ * relecture — REVIEW.md niveau 4.
+ */
 export interface Logger {
   debug(message: string, fields?: LogFields): void;
   info(message: string, fields?: LogFields): void;
@@ -78,6 +97,9 @@ const TERMES_EXACTS = new Set(['pin', 'cvv', 'iban']);
 const MASQUE = '[secret]';
 const PROFONDEUR_MAX = 6;
 
+/** Métadonnées produites par le logger. Aucun champ d'appelant ne les remplace. */
+const CHAMPS_RESERVES = ['time', 'level', 'message'] as const;
+
 function estInterdit(cle: string): boolean {
   const normalise = cle.toLowerCase().replace(/[_\-\s.]/g, '');
   return (
@@ -107,7 +129,11 @@ function redact(valeur: unknown, profondeur = 0, chemin = new Set<object>()): un
   if (profondeur >= PROFONDEUR_MAX) return '[trop profond]';
   if (chemin.has(valeur)) return '[cycle]';
 
-  if (valeur instanceof Date) return valeur.toISOString();
+  // Une Date invalide — `new Date('nawak')` — fait lever toISOString(). C'est le
+  // même piège que le BigInt : la panne surviendrait à l'écriture de la ligne.
+  if (valeur instanceof Date) {
+    return Number.isNaN(valeur.getTime()) ? '[date invalide]' : valeur.toISOString();
+  }
   if (valeur instanceof Error) {
     return { name: valeur.name, message: valeur.message };
   }
@@ -148,13 +174,28 @@ export function jsonLogger(write: (ligne: string) => void, options: LoggerOption
 
   function ecrire(level: LogLevel, message: string, fields?: LogFields): void {
     if (ORDRE[level] < seuil) return;
-    const ligne = {
-      time: clock.now().toISOString(),
-      level,
-      message,
-      ...(redact({ ...base, ...fields }) as Record<string, unknown>),
-    };
-    write(JSON.stringify(ligne));
+
+    const champs = redact({ ...base, ...fields }) as Record<string, unknown>;
+
+    // Les métadonnées ne sont pas falsifiables. Un champ nommé `level` écrasait
+    // le vrai niveau : une erreur pouvait se déguiser en info, et un incident
+    // disparaître des alertes. La collision est déplacée, jamais supprimée —
+    // effacer la donnée serait la seconde moitié du même défaut.
+    for (const reserve of CHAMPS_RESERVES) {
+      if (reserve in champs) {
+        champs[`champ.${reserve}`] = champs[reserve];
+        delete champs[reserve];
+      }
+    }
+
+    write(
+      JSON.stringify({
+        time: clock.now().toISOString(),
+        level,
+        message,
+        ...champs,
+      }),
+    );
   }
 
   return {

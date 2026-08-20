@@ -38,10 +38,19 @@ describe('pagination', () => {
     assert.equal(isOk(pageRequest(10)), true);
   });
 
-  test('un curseur non vide est conservé tel quel — il est opaque', () => {
-    const r = pageRequest(10, 'eyJvZmZzZXQiOjQyfQ==');
+  test('un curseur est conservé octet pour octet — aucune normalisation', () => {
+    // Sentinelle choisie pour détecter toute transformation silencieuse : espaces
+    // aux deux bouts, casse mixte, accents, symboles. Avec une valeur « propre »,
+    // une implémentation qui ferait cursor.trim() passerait le test sans qu'on
+    // le voie — et un curseur amputé désigne une autre position dans la liste.
+    const sentinelle = '  eyJvZmZzZXQiOjQyfQ==  Éé/+ \t ';
+    const r = pageRequest(10, sentinelle);
+
     assert.equal(isOk(r), true);
-    if (isOk(r)) assert.equal(r.value.cursor, 'eyJvZmZzZXQiOjQyfQ==');
+    if (isOk(r)) {
+      assert.equal(r.value.cursor, sentinelle);
+      assert.equal(r.value.cursor?.length, sentinelle.length);
+    }
   });
 
   test('le refus est permanent — la même demande échouera identiquement', () => {

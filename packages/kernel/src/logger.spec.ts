@@ -158,6 +158,39 @@ describe('journalisation structurée', () => {
     assert.equal((json()[0].boucle as Record<string, unknown>).soi, '[cycle]');
   });
 
+  test('une Date invalide ne fait pas lever', () => {
+    // new Date('nawak').toISOString() lève un RangeError. Même piège que le
+    // BigInt : la panne surviendrait à l'écriture, hors de portée de l'appelant.
+    const { logger, lignes, json } = capture();
+    assert.doesNotThrow(() => logger.info('daté', { quand: new Date('nawak') }));
+    assert.equal(lignes.length, 1);
+    assert.equal(json()[0].quand, '[date invalide]');
+  });
+
+  test('un champ ne peut pas usurper time, level ni message', () => {
+    // Sans réservation, une erreur pouvait se déguiser en info et disparaître
+    // des alertes. La collision est déplacée, pas supprimée.
+    const { logger, json } = capture();
+    logger.error('vrai message', { level: 'debug', time: 'faux', message: 'usurpé' });
+
+    const ligne = json()[0];
+    assert.equal(ligne.level, 'error');
+    assert.equal(ligne.time, '2026-09-01T07:30:00.000Z');
+    assert.equal(ligne.message, 'vrai message');
+
+    // Rien n'est perdu : la valeur de l'appelant est déplacée.
+    assert.equal(ligne['champ.level'], 'debug');
+    assert.equal(ligne['champ.time'], 'faux');
+    assert.equal(ligne['champ.message'], 'usurpé');
+  });
+
+  test('un child ne peut pas non plus usurper les métadonnées', () => {
+    const { logger, json } = capture();
+    logger.child({ level: 'debug' }).error('vrai');
+    assert.equal(json()[0].level, 'error');
+    assert.equal(json()[0]['champ.level'], 'debug');
+  });
+
   test('un BigInt ne fait pas lever la sérialisation', () => {
     // JSON.stringify lève sur un BigInt. Sans traitement, la ligne casse au
     // moment de l'écriture — hors de portée de tout try de l'appelant.
