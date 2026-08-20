@@ -14,6 +14,16 @@ describe('pagination', () => {
     }
   });
 
+  test('le plafond vaut 200 — valeur protectrice, pas réglage', () => {
+    // Les autres tests bornent avec LIMITE_MAX + 1 : une borne RELATIVE, qui
+    // se déplace avec la constante. Porter le plafond à 10 000 les laissait
+    // tous verts, et la protection anti-déni de service disparaissait sans
+    // qu'aucune gate ne bronche. Seul un littéral verrouille la valeur.
+    assert.equal(LIMITE_MAX, 200);
+    assert.equal(isErr(pageRequest(201)), true);
+    assert.equal(isOk(pageRequest(200)), true);
+  });
+
   test('les bornes 1 et LIMITE_MAX sont acceptées', () => {
     assert.equal(isOk(pageRequest(1)), true);
     assert.equal(isOk(pageRequest(LIMITE_MAX)), true);

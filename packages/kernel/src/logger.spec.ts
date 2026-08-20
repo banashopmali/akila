@@ -96,6 +96,41 @@ describe('journalisation structurée', () => {
     }
   });
 
+  test('les noms COURTS et réels sont masqués', () => {
+    // Les noms composés étaient couverts ; ceux-ci ne l'étaient pas. Un JWT
+    // complet et un « Bearer » brut sortaient en clair sous les noms sous
+    // lesquels on les écrit vraiment.
+    const { logger, lignes, json } = capture();
+    logger.info('sonde', {
+      jwt: 'A',
+      auth: 'B',
+      passwd: 'C',
+      pwd: 'D',
+      signature: 'E',
+      hmac: 'F',
+      salt: 'G',
+    });
+
+    const ligne = json()[0];
+    for (const champ of ['jwt', 'auth', 'passwd', 'pwd', 'signature', 'hmac', 'salt']) {
+      assert.equal(ligne[champ], '[secret]', `${champ} doit être masqué`);
+    }
+    for (const valeur of ['"A"', '"B"', '"C"', '"D"', '"E"', '"F"', '"G"']) {
+      assert.equal(lignes[0]?.includes(valeur), false);
+    }
+  });
+
+  test('author n’est pas auth — le nom d’une personne reste lisible', () => {
+    // Faux positif à éviter : masquer l'auteur d'une correction de présence
+    // rendrait le journal d'audit inutilisable.
+    const { logger, json } = capture();
+    logger.info('correction', { author: 'Fatoumata', authorId: 'e-12', authToken: 'X' });
+
+    assert.equal(json()[0].author, 'Fatoumata');
+    assert.equal(json()[0].authorId, 'e-12');
+    assert.equal(json()[0].authToken, '[secret]');
+  });
+
   test('un mot anodin contenant un terme court n’est pas masqué', () => {
     // « pin » est contenu dans mapping et shipping. Sur-masquer cacherait du
     // diagnostic utile sans rien protéger : égalité stricte pour ces termes-là.

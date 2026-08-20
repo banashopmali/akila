@@ -73,9 +73,12 @@ export interface Logger {
  */
 const TERMES_INTERDITS = [
   'password',
+  'passwd',
+  'pwd',
   'motdepasse',
   'passphrase',
   'token',
+  'jwt',
   'secret',
   'apikey',
   'authorization',
@@ -84,15 +87,21 @@ const TERMES_INTERDITS = [
   'sessionid',
   'credential',
   'privatekey',
+  'signature',
+  'hmac',
+  'salt',
   'otp',
 ];
 
 /**
  * Termes trop courts pour l'inclusion : ils apparaissent dans des mots anodins.
- * `pin` est contenu dans `mapping` et `shipping` — masquer ces champs cacherait
- * du diagnostic utile sans rien protéger. Égalité stricte pour ceux-là.
+ *
+ * `pin` est contenu dans `mapping` et `shipping`. `auth` est contenu dans
+ * `author` — masquer le nom d'un enseignant qui a saisi une note cacherait du
+ * diagnostic sans rien protéger. Égalité stricte pour ceux-là ; les formes
+ * composées réelles (`authToken`, `authorization`) sont déjà couvertes au-dessus.
  */
-const TERMES_EXACTS = new Set(['pin', 'cvv', 'iban']);
+const TERMES_EXACTS = new Set(['pin', 'auth', 'cvv', 'iban']);
 
 const MASQUE = '[secret]';
 const PROFONDEUR_MAX = 6;
