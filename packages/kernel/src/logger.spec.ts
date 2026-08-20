@@ -120,6 +120,37 @@ describe('journalisation structurée', () => {
     }
   });
 
+  test('un numéro de téléphone est masqué sous une marque distincte', () => {
+    // Décision du 20 août : masqué par défaut. Un secret se révoque, une donnée
+    // personnelle se protège — la marque diffère pour qu'on ne confonde pas une
+    // fuite de jeton avec une exposition de coordonnées en lisant un log.
+    const { logger, lignes, json } = capture();
+    logger.info('sms', { telephoneParent: '+22376123456', phoneNumber: '+22376000000', tel: 'X' });
+
+    const ligne = json()[0];
+    assert.equal(ligne.telephoneParent, '[donnée personnelle]');
+    assert.equal(ligne.phoneNumber, '[donnée personnelle]');
+    assert.equal(ligne.tel, '[donnée personnelle]');
+    assert.equal(lignes[0]?.includes('22376123456'), false);
+  });
+
+  test('la rédaction par nom NE rattrape PAS un numéro nommé autrement', () => {
+    // Limite assumée, verrouillée exprès : un jeton porte un nom conventionnel,
+    // un numéro de parent non. Ce test échouera le jour où quelqu'un croira que
+    // le logger protège toutes les données personnelles — il ne le fait pas.
+    const { logger, json } = capture();
+    logger.info('sms', { destinataire: '+22376123456' });
+
+    assert.equal(json()[0].destinataire, '+22376123456');
+  });
+
+  test('telemetry n’est pas tel — le terme court reste en égalité stricte', () => {
+    const { logger, json } = capture();
+    logger.info('mesure', { telemetry: 'ok', hotel: 'ok' });
+    assert.equal(json()[0].telemetry, 'ok');
+    assert.equal(json()[0].hotel, 'ok');
+  });
+
   test('author n’est pas auth — le nom d’une personne reste lisible', () => {
     // Faux positif à éviter : masquer l'auteur d'une correction de présence
     // rendrait le journal d'audit inutilisable.

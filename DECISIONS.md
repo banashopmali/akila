@@ -13,6 +13,38 @@ explique pourquoi le dépôt est dans l'état où vous le trouvez. L'ignorer con
 
 ---
 
+## 2026-08-20 · Le logger masque les numéros de téléphone par défaut
+
+**Décidé par :** I · **Portée :** `packages/kernel/src/logger.ts`
+
+Soulevée par la revue croisée de la PR #4 : un numéro de parent sortait en clair
+sous `telephoneParent`, `phoneNumber` ou `numeroTuteur`.
+
+**Décision.** Masqué par défaut, sous une marque **distincte** de celle des
+secrets — `[donnée personnelle]` et non `[secret]`. Un secret se révoque ; une
+donnée personnelle exposée ne se rattrape pas. Les confondre dans la sortie
+conduirait à traiter une exposition de coordonnées comme un incident de jeton,
+ou l'inverse.
+
+**L'argument contraire, et pourquoi il ne l'emporte pas.** La fonction SMS a
+besoin du numéro pour diagnostiquer une non-livraison. Mais ce besoin appartient
+à **un** adaptateur, pas à tous les logs du système. L'adaptateur journalisera
+une forme délibérément tronquée sous son propre nom de champ : une exception
+écrite et visible en relecture, plutôt qu'une absence de protection partout.
+
+**Limite assumée, et verrouillée par un test.** La rédaction par nom rattrape
+`telephone`, `phone`, `msisdn` et `tel`. Elle ne rattrape **pas** un numéro
+nommé `destinataire`, `contact` ou `to`. Un jeton porte presque toujours un nom
+conventionnel ; une donnée personnelle, non. Un test échoue si quelqu'un croit
+un jour que le logger protège toute donnée personnelle — il ne le fait pas, et
+la vraie protection reste de ne pas mettre un numéro dans un log.
+
+**Non couvert :** l'adresse e-mail. `utilisateur: 'admin@ecole.ml'` reste
+lisible, un test l'atteste. Masquer l'e-mail casserait le diagnostic de connexion
+administrateur ; c'est une décision distincte, non prise ici.
+
+---
+
 ## 2026-08-16 · Restauration de `CLAUDE.md` et `REVIEW.md` dans leur version du 3 août
 
 **Décidé par :** I · **Portée :** les deux documents normatifs de la racine

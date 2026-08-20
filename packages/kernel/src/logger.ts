@@ -103,17 +103,46 @@ const TERMES_INTERDITS = [
  */
 const TERMES_EXACTS = new Set(['pin', 'auth', 'cvv', 'iban']);
 
+/**
+ * Données personnelles — masquées elles aussi, sous une marque distincte.
+ *
+ * Un secret et une donnée personnelle ne se traitent pas pareil : le premier se
+ * révoque, la seconde ne se rattrape pas. Deux marques différentes dans la sortie
+ * évitent de confondre une fuite de jeton avec une exposition de coordonnées.
+ *
+ * **Portée réelle, à ne pas surestimer.** Un jeton porte presque toujours un nom
+ * conventionnel — `token`, `apiKey`, `secret`. Un numéro de parent, non : il peut
+ * s'appeler `destinataire`, `contact` ou `to`. La rédaction par nom rattrape les
+ * cas courants et **rien de plus** ; un test verrouille exprès cette limite.
+ *
+ * La vraie protection reste de ne pas mettre un numéro dans un log. L'adaptateur
+ * SMS, qui doit diagnostiquer une non-livraison, journalisera une forme tronquée
+ * sous son propre nom de champ : une exception décidée et visible, pas un trou.
+ */
+const TERMES_PERSONNELS = ['telephone', 'phone', 'msisdn'];
+const TERMES_PERSONNELS_EXACTS = new Set(['tel']);
+
 const MASQUE = '[secret]';
+const MASQUE_PERSONNEL = '[donnée personnelle]';
 const PROFONDEUR_MAX = 6;
 
 /** Métadonnées produites par le logger. Aucun champ d'appelant ne les remplace. */
 const CHAMPS_RESERVES = ['time', 'level', 'message'] as const;
 
-function estInterdit(cle: string): boolean {
+/** Rend le masque à appliquer, ou `undefined` si le champ sort tel quel. */
+function masquePour(cle: string): string | undefined {
   const normalise = cle.toLowerCase().replace(/[_\-\s.]/g, '');
-  return (
-    TERMES_EXACTS.has(normalise) || TERMES_INTERDITS.some((terme) => normalise.includes(terme))
-  );
+
+  if (TERMES_EXACTS.has(normalise) || TERMES_INTERDITS.some((t) => normalise.includes(t))) {
+    return MASQUE;
+  }
+  if (
+    TERMES_PERSONNELS_EXACTS.has(normalise) ||
+    TERMES_PERSONNELS.some((t) => normalise.includes(t))
+  ) {
+    return MASQUE_PERSONNEL;
+  }
+  return undefined;
 }
 
 /**
@@ -153,7 +182,7 @@ function redact(valeur: unknown, profondeur = 0, chemin = new Set<object>()): un
     : Object.fromEntries(
         Object.entries(valeur).map(([cle, v]) => [
           cle,
-          estInterdit(cle) ? MASQUE : redact(v, profondeur + 1, chemin),
+          masquePour(cle) ?? redact(v, profondeur + 1, chemin),
         ]),
       );
   chemin.delete(valeur);
