@@ -36,6 +36,21 @@ export default tseslint.config(
       'no-empty': ['error', { allowEmptyCatch: false }],
       eqeqeq: ['error', 'always'],
       'no-console': 'off',
+      // Constitution §26 — le message d'un log n'est pas rédigé : la rédaction
+      // s'appuie sur le NOM des champs, et du texte libre n'en a pas.
+      // Un gabarit en première position interpole des données dans la seule
+      // partie que la machine ne peut pas protéger.
+      'no-restricted-syntax': [
+        'error',
+        {
+          // `console` est exclu : un script CI qui écrit dans un terminal n'est
+          // pas un log applicatif, et rien n'y est rédigé de toute façon.
+          selector:
+            "CallExpression[callee.object.name!='console'][callee.property.name=/^(debug|info|warn|error)$/] > TemplateLiteral.arguments:first-child",
+          message:
+            'Message de log interpolé. Le message reste constant ; les données variables vont dans les champs structurés, qui sont rédigés.',
+        },
+      ],
     },
   },
   {

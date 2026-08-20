@@ -14,20 +14,21 @@ Exempté : `**/__fixtures__/**` — les fixtures existent pour être fausses.
 
 ## Racine — configuration
 
-| Fichier                                | Rôle                                               | Propriétaire |
-| -------------------------------------- | -------------------------------------------------- | ------------ |
-| `package.json`                         | Scripts et devDependencies du workspace            | I            |
-| `pnpm-workspace.yaml`                  | Périmètre du monorepo                              | I            |
-| `tsconfig.base.json`                   | TypeScript strict, alias `@akila/*`                | I            |
-| `eslint.config.js`                     | Lint + seconde ligne de défense sur les imports    | I            |
-| `.prettierrc.json` / `.prettierignore` | Format                                             | I            |
-| `.editorconfig`                        | Fins de ligne, indentation                         | I            |
-| `.gitignore`                           | Exclusions                                         | I            |
-| `AKILA-FILE-REGISTRY.md`               | Ce fichier                                         | I            |
-| `DEMARRAGE.md`                         | Premier démarrage — lockfile et gates non exercées | I            |
-| `CLAUDE.md`                            | Contrat de collaboration — les 11 interdictions    | I            |
-| `REVIEW.md`                            | Relecture à 4 niveaux                              | I            |
-| `DECISIONS.md`                         | Journal des décisions — provisoire jusqu'à AKT-4   | I            |
+| Fichier                                | Rôle                                                   | Propriétaire |
+| -------------------------------------- | ------------------------------------------------------ | ------------ |
+| `package.json`                         | Scripts et devDependencies du workspace                | I            |
+| `pnpm-workspace.yaml`                  | Périmètre du monorepo                                  | I            |
+| `tsconfig.base.json`                   | TypeScript strict, alias `@akila/*`                    | I            |
+| `eslint.config.js`                     | Lint + seconde ligne de défense sur les imports        | I            |
+| `.prettierrc.json` / `.prettierignore` | Format                                                 | I            |
+| `.editorconfig`                        | Fins de ligne, indentation                             | I            |
+| `.gitignore`                           | Exclusions                                             | I            |
+| `AKILA-FILE-REGISTRY.md`               | Ce fichier                                             | I            |
+| `DEMARRAGE.md`                         | Premier démarrage — lockfile et gates non exercées     | I            |
+| `CLAUDE.md`                            | Contrat de collaboration — les 11 interdictions        | I            |
+| `REVIEW.md`                            | Relecture à 4 niveaux                                  | I            |
+| `DECISIONS.md`                         | Journal des décisions — provisoire jusqu'à AKT-4       | I            |
+| `REVIEW-PR4-AKT66.md`                  | Revue croisée de la PR #4 — **emplacement à trancher** | I            |
 
 ## `.github/`
 
@@ -68,11 +69,34 @@ Exempté : `**/__fixtures__/**` — les fixtures existent pour être fausses.
 | ----------------------------- | ---------------------- |
 | `apps/admin-web/package.json` | Manifeste du workspace |
 
-## `packages/kernel/` — AKT-66, propriétaire N
+## `packages/kernel/` — AKT-66, propriétaire I
 
-| Fichier                        | Rôle                   |
-| ------------------------------ | ---------------------- |
-| `packages/kernel/package.json` | Manifeste du workspace |
+| Fichier                                  | Rôle                                                       |
+| ---------------------------------------- | ---------------------------------------------------------- |
+| `packages/kernel/package.json`           | Manifeste du workspace                                     |
+| `packages/kernel/src/result.ts`          | `Result` — l'échec est une valeur, pas une exception       |
+| `packages/kernel/src/result.spec.ts`     | Tests                                                      |
+| `packages/kernel/src/errors.ts`          | Modèle d'erreurs — les 3 classes d'échec (CLAUDE.md §7)    |
+| `packages/kernel/src/errors.spec.ts`     | Tests                                                      |
+| `packages/kernel/src/ids.ts`             | Identifiants techniques marqués, validation aux frontières |
+| `packages/kernel/src/ids.spec.ts`        | Tests                                                      |
+| `packages/kernel/src/clock.ts`           | Port `Clock` — horloge système et horloge figée            |
+| `packages/kernel/src/clock.spec.ts`      | Tests                                                      |
+| `packages/kernel/src/pagination.ts`      | Contrat de pagination par curseur opaque                   |
+| `packages/kernel/src/pagination.spec.ts` | Tests                                                      |
+| `packages/kernel/src/logger.ts`          | Journalisation structurée, rédaction des champs sensibles  |
+| `packages/kernel/src/logger.spec.ts`     | Tests                                                      |
 
-> Vide par décision. Se remplit une primitive à la fois, chacune justifiée par un
-> besoin présent. Jamais d'entité métier — règle `ARC-004`.
+> Se remplit une primitive à la fois, chacune justifiée par un besoin présent.
+> Jamais d'entité métier — règle `ARC-004`.
+>
+> **Pas encore ici :**
+>
+> - **Event Envelope** — ses 10 champs sont fixés par CLAUDE.md §8. Rien ne la
+>   bloque plus : elle est la prochaine primitive de ce dossier.
+> - **Outbox et Inbox** — hors de la liste §5, et ils portent des enveloppes.
+>   Où ils logent reste à décider.
+> - **Configuration** — AKT-66 l'inscrit à son périmètre, mais §5 énumère ce que
+>   `packages/` contient et la configuration n'y figure pas. Reportée le 16 août.
+>
+> Les trois sont consignés dans `DECISIONS.md`.
