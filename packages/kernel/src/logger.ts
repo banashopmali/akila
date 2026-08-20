@@ -219,11 +219,17 @@ export function jsonLogger(write: (ligne: string) => void, options: LoggerOption
     // le vrai niveau : une erreur pouvait se déguiser en info, et un incident
     // disparaître des alertes. La collision est déplacée, jamais supprimée —
     // effacer la donnée serait la seconde moitié du même défaut.
+    //
+    // Le nom de repli peut lui-même être pris : un appelant qui envoie à la fois
+    // `level` et `champ.level` verrait le second écrasé par le premier. On
+    // cherche donc le premier nom libre au lieu d'écrire à l'aveugle.
     for (const reserve of CHAMPS_RESERVES) {
-      if (reserve in champs) {
-        champs[`champ.${reserve}`] = champs[reserve];
-        delete champs[reserve];
-      }
+      if (!(reserve in champs)) continue;
+      let cible = `champ.${reserve}`;
+      let suffixe = 2;
+      while (cible in champs) cible = `champ.${reserve}.${suffixe++}`;
+      champs[cible] = champs[reserve];
+      delete champs[reserve];
     }
 
     write(

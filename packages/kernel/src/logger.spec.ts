@@ -250,6 +250,19 @@ describe('journalisation structurée', () => {
     assert.equal(ligne['champ.message'], 'usurpé');
   });
 
+  test('le nom de repli déjà pris ne fait perdre aucune donnée', () => {
+    // Cas limite de la correction précédente : l'appelant envoie à la fois
+    // `level` et `champ.level`. Écrire à l'aveugle écrasait le second — la
+    // seconde moitié du défaut qu'on venait de corriger.
+    const { logger, json } = capture();
+    logger.error('vrai', { level: 'usurpé', 'champ.level': 'donnée légitime' });
+
+    const ligne = json()[0];
+    assert.equal(ligne.level, 'error');
+    assert.equal(ligne['champ.level'], 'donnée légitime');
+    assert.equal(ligne['champ.level.2'], 'usurpé');
+  });
+
   test('un child ne peut pas non plus usurper les métadonnées', () => {
     const { logger, json } = capture();
     logger.child({ level: 'debug' }).error('vrai');
